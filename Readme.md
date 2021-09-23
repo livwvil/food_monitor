@@ -22,19 +22,30 @@ sudo mysql_secure_installation
 * Reload privilege tables now? (Press y|Y for Yes, any other key for No) :
 * y
 * sudo mysql
+
+```
+sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+comment bind-address
+```
+
+```
 * SELECT user,authentication_string,plugin,host FROM mysql.user;
 * ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'qwerty1121';
 * SELECT user,authentication_string,plugin,host FROM mysql.user;
 * FLUSH PRIVILEGES;
-* CREATE USER 'notrootbutadmin'@'localhost' IDENTIFIED BY 'SerhEo238*';GRANT ALL PRIVILEGES ON *.* TO 'notrootbutadmin'@'localhost' WITH GRANT OPTION;CREATE USER 'notrootbutadmin'@'%' IDENTIFIED BY 'SerhEo238*';GRANT ALL PRIVILEGES ON *.* TO 'notrootbutadmin'@'%' WITH GRANT OPTION;FLUSH PRIVILEGES;
+```
+
+```
+ CREATE USER 'notrootbutadmin'@'localhost' IDENTIFIED BY 'SerhEo238*';GRANT ALL PRIVILEGES ON *.* TO 'notrootbutadmin'@'localhost' WITH GRANT OPTION;CREATE USER 'notrootbutadmin'@'%' IDENTIFIED BY 'SerhEo238*';GRANT ALL PRIVILEGES ON *.* TO 'notrootbutadmin'@'%' WITH GRANT OPTION;FLUSH PRIVILEGES;
+```
+
 * sudo systemctl restart mysql
 
-Self-check
-* mysql -u root -p
-* systemctl status mysql.service
-* sudo systemctl start mysql
-* mysqladmin -p -u root version
-* mysql -u root -p < test1.sql
+```
+scp src/some.sql root@ip:dst
+mysql -u root -p < some.sql
+```
+
 
 # Install dependencies
 pip install pyTelegramBotAPI
@@ -49,6 +60,11 @@ add TelegramBot Token to conf.ini
 python3 ./main.py
 
 # Help
-sudo docker run -it 670fc1c9e1a3 /bin/bash
+* sudo docker run -it image_id bash
+* sudo docker exec -it container_id bash
+* mysql -u root -p
+* systemctl status mysql.service
+* sudo systemctl start mysql
+* mysqladmin -p -u root version
 
 
