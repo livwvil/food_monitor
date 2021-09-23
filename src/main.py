@@ -5,6 +5,7 @@ import telebot
 from datetime import datetime
 import io
 from telebot import apihelper
+import sys
 
 apihelper.ENABLE_MIDDLEWARE = True
 
@@ -18,9 +19,13 @@ class UserState:
     CLARIFY_FOOD = 'clarify_food'
     CLARIFY_PROBLEM = 'clarify_problem'
 
+# db_connectionstring = "mysql://root:qwerty1121@localhost:3306/food_monitor_db_test"
+db_connectionstring = "mysql://notrootbutadmin:SerhEo238*@localhost:3306/food_monitor_db_prod"
 
-# db = connect("mysql://root:qwerty1121@localhost:3306/food_monitor_db_test")
-db = connect("mysql://root:qwerty1121@localhost:3306/food_monitor_db_prod")
+if len(sys.argv) > 1:
+    db_connectionstring = db_connectionstring.replace("localhost", sys.argv[1])
+
+db = connect(db_connectionstring)
 
 
 class BaseModel(Model):
