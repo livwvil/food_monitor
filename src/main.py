@@ -1,4 +1,4 @@
-from peewee import *
+﻿from peewee import *
 from playhouse.db_url import connect
 import configparser
 import telebot
@@ -10,6 +10,29 @@ import sys
 apihelper.ENABLE_MIDDLEWARE = True
 
 
+def read_config(filename):
+    config = configparser.ConfigParser()
+    config.read(filename)
+
+    bot_token = ''
+    db_connection_string = ''
+    if 'auth' in config:
+        bot_token = config['auth']['bot_token']
+        db_connection_string = config['auth']['db_connection_string']
+
+    return bot_token, db_connection_string
+
+
+(token, db_con_str) = read_config('conf.ini')
+
+
+if len(sys.argv) > 1:
+    db_con_str = db_con_str.replace("localhost", sys.argv[1])
+
+
+db = connect(db_con_str)
+
+
 class UserState:
     IDLE = 'idle'
     ADD_FOOD = 'add_food'
@@ -18,14 +41,6 @@ class UserState:
     FINISHING_ADD_PROBLEM = 'finishing_add_problem'
     CLARIFY_FOOD = 'clarify_food'
     CLARIFY_PROBLEM = 'clarify_problem'
-
-# db_connectionstring = "mysql://root:qwerty1121@localhost:3306/food_monitor_db_test"
-db_connectionstring = "mysql://notrootbutadmin:SerhEo238*@localhost:3306/food_monitor_db_prod"
-
-if len(sys.argv) > 1:
-    db_connectionstring = db_connectionstring.replace("localhost", sys.argv[1])
-
-db = connect(db_connectionstring)
 
 
 class BaseModel(Model):
@@ -304,10 +319,10 @@ def run_bot(bot_token):
         delete_last_msg_with_keyboard(message.chat.id)
 
         existing_items = []
-        if user.state == UserState.ADD_FOOD:
+        if user.state in [UserState.ADD_FOOD, UserState.CLARIFY_FOOD]:
             user.state = UserState.CLARIFY_FOOD
             existing_items = [it.name.lower() for it in Food.select()]
-        if user.state == UserState.ADD_PROBLEM:
+        if user.state in [UserState.ADD_PROBLEM, UserState.CLARIFY_PROBLEM]:
             user.state = UserState.CLARIFY_PROBLEM
             existing_items = [it.name.lower() for it in Problem.select()]
         user.save()
@@ -488,19 +503,7 @@ def run_bot(bot_token):
     bot.polling()
 
 
-def read_config(filename):
-    config = configparser.ConfigParser()
-    config.read(filename)
-
-    bot_token = ''
-    if 'auth' in config:
-        bot_token = config['auth']['bot_token']
-
-    return bot_token
-
-
 if __name__ == '__main__':
-    token = read_config('conf.ini')
     if token != '':
         db.connect()
         run_bot(token)
