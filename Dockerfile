@@ -2,8 +2,6 @@ FROM python
 
 WORKDIR /app
 
-COPY ./src/main.py .
-
 COPY ./src/conf.ini .
 
 COPY ./src/starter.sh .
