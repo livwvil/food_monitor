@@ -14,9 +14,9 @@ RUN pip install peewee
 
 RUN pip install cryptography
 
-RUN apt update
+RUN apt update -y
 
-RUN apt upgrade
+RUN apt upgrade -y
 
 RUN apt install -y iproute2
 
