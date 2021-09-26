@@ -2,9 +2,7 @@ FROM python
 
 WORKDIR /app
 
-COPY ./src/conf.ini .
-
-COPY ./src/starter.sh .
+COPY . .
 
 RUN pip install pyTelegramBotAPI
 
