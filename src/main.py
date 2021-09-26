@@ -211,7 +211,7 @@ def dbg_merge(before, after):
 
 
 def run_bot(bot_token):
-    print(bot_token)
+    print('bot runs\ntocken: ' + bot_token)
     bot = telebot.TeleBot(bot_token)
 
     @bot.middleware_handler(update_types=['message'])
