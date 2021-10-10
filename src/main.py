@@ -174,9 +174,9 @@ def get_statistics(user):
             else:
                 stats[date_str][time_str].append(row['name'])
     result = ""
-    for key_d in reversed(sorted(list(stats.keys()))):
+    for key_d in reversed(sorted(list(stats.keys()), key=lambda date: datetime.strptime(date, datetime_pattern.split(" ")[0]))):
         result += key_d + "\n"
-        for key_t in sorted(list(stats[key_d].keys())):
+        for key_t in reversed(sorted(list(stats[key_d].keys()))):
             result += "\t" + key_t + "\n\t\t- " + "\n\t\t- ".join(stats[key_d][key_t]) + "\n"
     return result
 

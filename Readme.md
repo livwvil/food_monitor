@@ -46,6 +46,11 @@ Or create new user
  CREATE USER 'username'@'%' IDENTIFIED BY 'password';
  GRANT ALL PRIVILEGES ON *.* TO 'username'@'%' WITH GRANT OPTION;FLUSH PRIVILEGES;
 ```
+Enable access by password (for MySQL Front)
+```sql
+ALTER USER 'username'@'%' IDENTIFIED WITH mysql_native_password BY 'password';
+FLUSH PRIVILEGES;
+```
 Restart mysql
 ```sh
 sudo systemctl restart mysql
