@@ -70,6 +70,24 @@ mysql -u root -p < some.sql
 python3 ./main.py
 ```
 
+# CMD Useful scripts
+## Import file
+```cmd
+@echo off
+set file=path/to/default/file
+set /p file=What file? (press Enter to get %file% as default):
+cmd /C scp -i path/to/ssh_key user@ip:%file% ./
+```
+## Export file (drag'n'drop)
+```cmd
+@echo off
+cmd /C scp -i path/to/ssh_key %1 user@ip:/path/to/destination/folder
+```
+## Connect server
+```cmd
+@echo off
+cmd /C ssh -i path/to/ssh_key user@ip
+```
 
 # Useful commands
 ```sh
@@ -84,4 +102,7 @@ mysqladmin -p -u root version
 systemctl status mysql.service
 sudo systemctl start mysql
 
+# MySQL import/export
+mysql -u root -p < backup.sql
+mysqldump -u root -p food_monitor_prod > backup.sql
 ```
