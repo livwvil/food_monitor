@@ -35,12 +35,15 @@ db = connect(db_con_str)
 
 class UserState:
     IDLE = 'idle'
-    ADD_FOOD = 'add_food'
-    ADD_PROBLEM = 'add_problem'
-    FINISHING_ADD_FOOD = 'finishing_add_food'
-    FINISHING_ADD_PROBLEM = 'finishing_add_problem'
-    CLARIFY_FOOD = 'clarify_food'
-    CLARIFY_PROBLEM = 'clarify_problem'
+    ADD_EATING = 'add_eating'
+    ADD_ISSUE = 'add_issue'
+    ADD_MEDICATION = 'add_medication'
+    CLARIFY_EATING = 'clarify_eating'
+    CLARIFY_ISSUE = 'clarify_issue'
+    CLARIFY_MEDICATION = 'clarify_medication'
+    FINISHING_ADD_EATING = 'finishing_add_eating'
+    FINISHING_ADD_ISSUE = 'finishing_add_issue'
+    FINISHING_ADD_MEDICATION = 'finishing_add_medication'
 
 
 class BaseModel(Model):
@@ -98,6 +101,23 @@ class Issue2Problem(BaseModel):
     problem_id = ForeignKeyField(Problem, backref='issue2problem')
 
 
+class Medication(BaseModel):
+    id = IntegerField()
+    user_id = ForeignKeyField(User, backref='medication')
+    time = DateTimeField()
+
+
+class Medicine(BaseModel):
+    id = IntegerField()
+    name = TextField()
+
+
+class Medication2Medicine(BaseModel):
+    id = IntegerField()
+    medication_id = ForeignKeyField(Medication, backref='medication2medicine')
+    medicine_id = ForeignKeyField(Medicine, backref='medication2medicine')
+
+
 def insert_user(chat_id, state):
     user = User(chat_id=chat_id, state=state)
     if user.save():
@@ -114,12 +134,12 @@ def get_user_by_chat_id(chat_id):
         return None
 
 
-def delete_user_by_chat_id(chat_id):
-    some = User.select().where(User.chat_id == chat_id)
-    if some:
-        return some.get().delete_instance()
-    else:
-        return None
+# def delete_user_by_chat_id(chat_id):
+#     some = User.select().where(User.chat_id == chat_id)
+#     if some:
+#         return some.get().delete_instance()
+#     else:
+#         return None
 
 
 def get_user(chat_id):
@@ -146,7 +166,7 @@ def add_eating(dt, food, user):
         cur_e2f.save()
 
 
-def add_problem(dt, problems, user):
+def add_issue(dt, problems, user):
     cur_issue = Issue(user_id=user.id, time=datetime.strptime(dt, datetime_pattern))
     cur_issue.save()
     for cur_item in problems:
@@ -160,11 +180,26 @@ def add_problem(dt, problems, user):
         cur_i2p.save()
 
 
+def add_medication(dt, medicines, user):
+    cur_medication = Medication(user_id=user.id, time=datetime.strptime(dt, datetime_pattern))
+    cur_medication.save()
+    for cur_item in medicines:
+        db_item = Medicine.select().where(Medicine.name == cur_item)
+        if db_item:
+            db_item = db_item.get()
+        else:
+            db_item = Medicine(name=cur_item)
+            db_item.save()
+        cur_m2m = Medication2Medicine(medication_id=cur_medication.id, medicine_id=db_item.id)
+        cur_m2m.save()
+
+
 def get_statistics(user):
     stats = {}
     f = list(Eating.select(Eating.time, Food.name).join(Eating2Food).join(Food).where(Eating.user_id == user.id).dicts())
     p = list(Issue.select(Issue.time, Problem.name).join(Issue2Problem).join(Problem).where(Issue.user_id == user.id).dicts())
-    for row in [*f, *p]:
+    m = list(Medication.select(Medication.time, Medicine.name).join(Medication2Medicine).join(Medicine).where(Medication.user_id == user.id).dicts())
+    for row in [*f, *p, *m]:
         [date_str, time_str] = row['time'].strftime(datetime_pattern).split(" ")
         if date_str not in stats:
             stats[date_str] = {time_str: [row['name']]}
@@ -277,14 +312,14 @@ def run_bot(bot_token):
             print(message.text + "\n" + dbg_merge(dbg_before, dbg_user.info()))
             print(statistics)
 
-    @bot.message_handler(commands=['ap'])
-    def ap_command(message):
+    @bot.message_handler(commands=['ai'])
+    def ai_command(message):
         user = get_reset_user(message.chat.id)
         if print_dbg_info:
             dbg_user = get_user(message.chat.id)
             dbg_before = dbg_user.info()
 
-        user.state = UserState.ADD_PROBLEM
+        user.state = UserState.ADD_ISSUE
         user.save()
         msg = bot.send_message(message.chat.id, 'What problem you would like to add?',
                                reply_markup=telebot.types.InlineKeyboardMarkup([
@@ -296,16 +331,35 @@ def run_bot(bot_token):
             dbg_user = get_user(message.chat.id)
             print(message.text + "\n" + dbg_merge(dbg_before, dbg_user.info()))
 
-    @bot.message_handler(commands=['af'])
-    def af_command(message):
+    @bot.message_handler(commands=['ae'])
+    def ae_command(message):
         user = get_reset_user(message.chat.id)
         if print_dbg_info:
             dbg_user = get_user(message.chat.id)
             dbg_before = dbg_user.info()
 
-        user.state = UserState.ADD_FOOD
+        user.state = UserState.ADD_EATING
         user.save()
         msg = bot.send_message(message.chat.id, 'What food you would like to add?',
+                               reply_markup=telebot.types.InlineKeyboardMarkup([
+                                   [telebot.types.InlineKeyboardButton(text='Abort', callback_data='aborting')]
+                               ]))
+        save_last_msg_with_keyboard(user, msg)
+
+        if print_dbg_info:
+            dbg_user = get_user(message.chat.id)
+            print(message.text + "\n" + dbg_merge(dbg_before, dbg_user.info()))
+
+    @bot.message_handler(commands=['am'])
+    def am_command(message):
+        user = get_reset_user(message.chat.id)
+        if print_dbg_info:
+            dbg_user = get_user(message.chat.id)
+            dbg_before = dbg_user.info()
+
+        user.state = UserState.ADD_MEDICATION
+        user.save()
+        msg = bot.send_message(message.chat.id, 'What medicine you would like to add?',
                                reply_markup=telebot.types.InlineKeyboardMarkup([
                                    [telebot.types.InlineKeyboardButton(text='Abort', callback_data='aborting')]
                                ]))
@@ -319,12 +373,16 @@ def run_bot(bot_token):
         delete_last_msg_with_keyboard(message.chat.id)
 
         existing_items = []
-        if user.state in [UserState.ADD_FOOD, UserState.CLARIFY_FOOD]:
-            user.state = UserState.CLARIFY_FOOD
+        if user.state in [UserState.ADD_EATING, UserState.CLARIFY_EATING]:
+            user.state = UserState.CLARIFY_EATING
             existing_items = [it.name.lower() for it in Food.select()]
-        if user.state in [UserState.ADD_PROBLEM, UserState.CLARIFY_PROBLEM]:
-            user.state = UserState.CLARIFY_PROBLEM
+        if user.state in [UserState.ADD_ISSUE, UserState.CLARIFY_ISSUE]:
+            user.state = UserState.CLARIFY_ISSUE
             existing_items = [it.name.lower() for it in Problem.select()]
+        if user.state in [UserState.ADD_MEDICATION, UserState.CLARIFY_MEDICATION]:
+            user.state = UserState.CLARIFY_MEDICATION
+            existing_items = [it.name.lower() for it in Medicine.select()]
+
         user.save()
 
         typed_item = message.text.lower().strip()
@@ -354,12 +412,15 @@ def run_bot(bot_token):
         save_last_msg_with_keyboard(user, msg)
 
     text_request_handlers = {
-        UserState.ADD_FOOD: item_typing_handler,
-        UserState.CLARIFY_FOOD: item_typing_handler,
-        UserState.ADD_PROBLEM: item_typing_handler,
-        UserState.CLARIFY_PROBLEM: item_typing_handler,
-        UserState.FINISHING_ADD_FOOD: datetime_typing_handler,
-        UserState.FINISHING_ADD_PROBLEM: datetime_typing_handler
+        UserState.ADD_EATING: item_typing_handler,
+        UserState.CLARIFY_EATING: item_typing_handler,
+        UserState.FINISHING_ADD_EATING: datetime_typing_handler,
+        UserState.ADD_ISSUE: item_typing_handler,
+        UserState.CLARIFY_ISSUE: item_typing_handler,
+        UserState.FINISHING_ADD_ISSUE: datetime_typing_handler,
+        UserState.ADD_MEDICATION: item_typing_handler,
+        UserState.CLARIFY_MEDICATION: item_typing_handler,
+        UserState.FINISHING_ADD_MEDICATION: datetime_typing_handler
     }
 
     @bot.message_handler(content_types=['text'])
@@ -387,7 +448,7 @@ def run_bot(bot_token):
         return msg == 'aborting'
 
     @bot.callback_query_handler(
-        func=lambda call: get_user(call.message.chat.id).state in [UserState.ADD_FOOD, UserState.ADD_PROBLEM])
+        func=lambda call: get_user(call.message.chat.id).state in [UserState.ADD_EATING, UserState.ADD_ISSUE, UserState.ADD_MEDICATION])
     def continue_adding_callback_worker(call):
         cid = call.message.chat.id
         user = get_user(cid)
@@ -399,12 +460,16 @@ def run_bot(bot_token):
             delete_last_msg_with_keyboard(cid)
 
             if call.data == 'finishing':
-                if user.state == UserState.ADD_FOOD:
-                    user.state = UserState.FINISHING_ADD_FOOD
+                if user.state == UserState.ADD_EATING:
+                    user.state = UserState.FINISHING_ADD_EATING
                     user.save()
-                if user.state == UserState.ADD_PROBLEM:
-                    user.state = UserState.FINISHING_ADD_PROBLEM
+                if user.state == UserState.ADD_ISSUE:
+                    user.state = UserState.FINISHING_ADD_ISSUE
                     user.save()
+                if user.state == UserState.ADD_MEDICATION:
+                    user.state = UserState.FINISHING_ADD_MEDICATION
+                    user.save()
+
                 msg = bot.send_message(cid, 'Define time <dd.mm.yyyy HH:MM> or <HH:MM>',
                                        reply_markup=telebot.types.InlineKeyboardMarkup([
                                            [telebot.types.InlineKeyboardButton(text='Abort', callback_data='aborting')]
@@ -425,7 +490,7 @@ def run_bot(bot_token):
         user.save()
 
     @bot.callback_query_handler(
-        func=lambda call: get_user(call.message.chat.id).state in [UserState.CLARIFY_FOOD, UserState.CLARIFY_PROBLEM])
+        func=lambda call: get_user(call.message.chat.id).state in [UserState.CLARIFY_EATING, UserState.CLARIFY_ISSUE, UserState.CLARIFY_MEDICATION])
     def clarify_input_callback_worker(call):
         cid = call.message.chat.id
         user = get_user(cid)
@@ -439,11 +504,14 @@ def run_bot(bot_token):
             save_input_to_stash(user, call.data)
             bot.send_message(cid, call.data + ' added')
 
-            if user.state == UserState.CLARIFY_FOOD:
-                user.state = UserState.ADD_FOOD
+            if user.state == UserState.CLARIFY_EATING:
+                user.state = UserState.ADD_EATING
                 user.save()
-            if user.state == UserState.CLARIFY_PROBLEM:
-                user.state = UserState.ADD_PROBLEM
+            if user.state == UserState.CLARIFY_ISSUE:
+                user.state = UserState.ADD_ISSUE
+                user.save()
+            if user.state == UserState.CLARIFY_MEDICATION:
+                user.state = UserState.ADD_MEDICATION
                 user.save()
 
             msg = bot.send_message(cid, text="Anything else?", reply_markup=telebot.types.InlineKeyboardMarkup([
@@ -456,8 +524,9 @@ def run_bot(bot_token):
             dbg_user = get_user(cid)
             print(call.data + "\n" + dbg_merge(dbg_before, dbg_user.info()))
 
-    @bot.callback_query_handler(func=lambda call: get_user(call.message.chat.id).state in [UserState.FINISHING_ADD_FOOD,
-                                                                                           UserState.FINISHING_ADD_PROBLEM])
+    @bot.callback_query_handler(func=lambda call: get_user(call.message.chat.id).state in [UserState.FINISHING_ADD_EATING,
+                                                                                           UserState.FINISHING_ADD_ISSUE,
+                                                                                           UserState.FINISHING_ADD_MEDICATION])
     def finishing_adding_callback_worker(call):
         cid = call.message.chat.id
         user = get_user(cid)
@@ -471,10 +540,12 @@ def run_bot(bot_token):
             stash = str(user.temporary).split("\n")
             dt = call.data
 
-            if user.state == UserState.FINISHING_ADD_FOOD:
+            if user.state == UserState.FINISHING_ADD_EATING:
                 add_eating(dt, stash, user)
-            if user.state == UserState.FINISHING_ADD_PROBLEM:
-                add_problem(dt, stash, user)
+            if user.state == UserState.FINISHING_ADD_ISSUE:
+                add_issue(dt, stash, user)
+            if user.state == UserState.FINISHING_ADD_MEDICATION:
+                add_medication(dt, stash, user)
 
             reset_user_state(user)
             bot.send_message(cid, "Saved:\n" + ", ".join(stash) + "\nat " + dt)
