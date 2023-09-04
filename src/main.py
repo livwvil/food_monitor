@@ -194,25 +194,56 @@ def add_medication(dt, medicines, user):
         cur_m2m.save()
 
 
-def get_statistics(user):
+def prepare_statistics(user):
     stats = {}
-    f = list(Eating.select(Eating.time, Food.name).join(Eating2Food).join(Food).where(Eating.user_id == user.id).dicts())
-    p = list(Issue.select(Issue.time, Problem.name).join(Issue2Problem).join(Problem).where(Issue.user_id == user.id).dicts())
-    m = list(Medication.select(Medication.time, Medicine.name).join(Medication2Medicine).join(Medicine).where(Medication.user_id == user.id).dicts())
-    for row in [*f, *p, *m]:
+    food = list(Eating.select(Eating.time, Food.name, Value('food').alias('type')).join(Eating2Food).join(Food).where(Eating.user_id == user.id).dicts())
+    problems = list(Issue.select(Issue.time, Problem.name, Value('problem').alias('type')).join(Issue2Problem).join(Problem).where(Issue.user_id == user.id).dicts())
+    medicines = list(Medication.select(Medication.time, Medicine.name, Value('medicine').alias('type')).join(Medication2Medicine).join(Medicine).where(Medication.user_id == user.id).dicts())
+    for row in [*food, *problems, *medicines]:
         [date_str, time_str] = row['time'].strftime(datetime_pattern).split(" ")
         if date_str not in stats:
-            stats[date_str] = {time_str: [row['name']]}
+            stats[date_str] = {time_str: [{"name": row['name'], "type": row['type']}]}
         else:
             if time_str not in stats[date_str]:
-                stats[date_str][time_str] = [row['name']]
+                stats[date_str][time_str] = [{"name": row['name'], "type": row['type']}]
             else:
-                stats[date_str][time_str].append(row['name'])
+                stats[date_str][time_str].append({"name": row['name'], "type": row['type']})
+    return stats
+
+
+def get_statistics(user):
+    stats = prepare_statistics(user)
     result = ""
     for key_d in reversed(sorted(list(stats.keys()), key=lambda date: datetime.strptime(date, datetime_pattern.split(" ")[0]))):
         result += key_d + "\n"
         for key_t in reversed(sorted(list(stats[key_d].keys()))):
-            result += "\t" + key_t + "\n\t\t- " + "\n\t\t- ".join(stats[key_d][key_t]) + "\n"
+            items = [i["name"] for i in stats[key_d][key_t]]
+            result += "\t" + key_t + "\n\t\t- " + "\n\t\t- ".join(items) + "\n"
+    return result
+
+
+def get_statistics_html(user):
+    stats = prepare_statistics(user)
+
+    date_template = "<p class=\"date\">%s</p>"
+    time_template = "<p class=\"time\">%s</p>"
+    food_template = "<p class=\"item food\">%s</p>"
+    problem_template = "<p class=\"item problem\">%s</p>"
+    medicine_template = "<p class=\"item medicine\">%s</p>"
+
+    result = ""
+    for key_d in reversed(sorted(list(stats.keys()), key=lambda date: datetime.strptime(date, datetime_pattern.split(" ")[0]))):
+        result += (date_template % key_d) + "\n"
+        for key_t in reversed(sorted(list(stats[key_d].keys()))):
+            items = []
+            for it in stats[key_d][key_t]:
+                if it["type"] == "food":
+                    items.append(food_template % it["name"])
+                if it["type"] == "problem":
+                    items.append(problem_template % it["name"])
+                if it["type"] == "medicine":
+                    items.append(medicine_template % it["name"])
+            result += (time_template % key_t) + "\n" + "\n".join(items) + "\n"
     return result
 
 
@@ -304,6 +335,29 @@ def run_bot(bot_token):
         file = io.StringIO(statistics)
         if statistics != "":
             bot.send_document(message.chat.id, file, visible_file_name="stats.txt")
+        else:
+            bot.send_message(message.chat.id, "No statistics yet")
+
+        if print_dbg_info:
+            dbg_user = get_user(message.chat.id)
+            print(message.text + "\n" + dbg_merge(dbg_before, dbg_user.info()))
+            print(statistics)
+
+    @bot.message_handler(commands=['st_html'])
+    def statistics_html_command(message):
+        user = get_reset_user(message.chat.id)
+        if print_dbg_info:
+            dbg_user = get_user(message.chat.id)
+            dbg_before = dbg_user.info()
+
+        with open('template.html', mode="r", encoding="utf-8") as f:
+            template = f.read()
+        statistics_body = get_statistics_html(user);
+        statistics = template % {"body": statistics_body}
+
+        file = io.StringIO(statistics)
+        if statistics_body != "":
+            bot.send_document(message.chat.id, file, visible_file_name="stats.html")
         else:
             bot.send_message(message.chat.id, "No statistics yet")
 
